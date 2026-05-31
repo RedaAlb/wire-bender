@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wire Bender Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --panel-bg: rgba(255, 255, 255, 0.03);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --danger: #f43f5e;
+      --danger-hover: #e11d48;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --glass-blur: blur(12px);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      background-image: radial-gradient(circle at top right, #1e293b 0%, transparent 40%),
+        radial-gradient(circle at bottom left, #1e293b 0%, transparent 40%);
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0 0 1rem 0;
+      font-weight: 600;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      backdrop-filter: var(--glass-blur);
+      -webkit-backdrop-filter: var(--glass-blur);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: opacity 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel.disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    /* Dashboard Header */
+    .header-panel {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .status-stopped {
+      background: rgba(148, 163, 184, 0.2);
+      color: var(--text-muted);
+    }
+
+    .status-running {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+    }
+
+    .status-paused {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+    }
+
+    .status-manual {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+    }
+
+    .status-homing {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0.5rem;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
+
+    /* View Switcher */
+    .view {
+      display: none;
+      flex-direction: column;
+      gap: 1.5rem;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .view.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Progress UI */
+    .progress-container {
+      margin: 1.5rem 0;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 24px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      width: 0%;
+      transition: width 0.3s ease-out;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-box {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid var(--panel-border);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.25rem;
+      color: var(--accent);
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Controls */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: auto;
+    }
+
+    button {
+      background: var(--panel-bg);
+      color: var(--text-main);
+      border: 1px solid var(--panel-border);
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    button:active:not(:disabled) {}
+
+    button.primary {
+      background: var(--accent);
+      color: #000;
+      border: none;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+    }
+
+    button.danger:hover:not(:disabled) {
+      background: var(--danger-hover);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .full-btn {
+      width: 100%;
+      margin-top: auto;
+    }
+
+    /* Inputs */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    label {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 0.75rem;
+      border-radius: 8px;
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      width: 100%;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* Slider styling */
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+      margin: 1rem 0;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      border: 1px solid var(--panel-border);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      border: 2px solid #000;
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -9px;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+    }
+
+    input[type="range"]:focus {
+      outline: none;
+    }
+
+    /* Manual Quick Presets */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .preset-grid button {
+      padding: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    /* History Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    th {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+    }
+
+    td {
+      font-size: 0.9rem;
+    }
+
+    .empty-history {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 2rem;
+      font-style: italic;
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+
+    /* Helper utility */
+    .align-center {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Visual Arm */
+    .arm-container {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      margin: 1.5rem 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    .arm-container:active {
+      cursor: grabbing;
+    }
+
+    .arm-svg {
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <!-- Dashboard Header -->
+    <div class="panel header-panel">
+      <div>
+        <h1>Wire Experimentations</h1>
+        <p style="margin: 0; color: var(--text-muted);">Durability Testing Machine</p>
+      </div>
+      <div id="ui-status" class="status-badge status-stopped">Stopped</div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs">
+      <button class="tab-btn active" data-target="view-manual">Manual Mode</button>
+      <button class="tab-btn" data-target="view-experiment">Experiment Mode</button>
+    </div>
+
+    <!-- EXPERIMENT VIEW -->
+    <div id="view-experiment" class="view">
+
+      <div class="grid-2">
+        <!-- Configuration Panel -->
+        <div class="panel" id="panel-setup">
+          <h2>Setup New Experiment</h2>
+          <div class="input-group">
+            <label>Experiment Name</label>
+            <input type="text" id="input-exp-name" placeholder="">
+          </div>
+          <div class="input-group">
+            <label>Target Repetitions</label>
+            <input type="number" id="input-target" min="1" placeholder="">
+          </div>
+          <div class="input-group">
+            <label>Start Angle per Rep (Range: 90° to -120°)</label>
+            <input type="number" id="input-start-angle" min="-120" max="90" placeholder="">
+          </div>
+          <div class="input-group">
+            <label>Target Angle per Rep (Range: 90° to -120°)</label>
+            <input type="number" id="input-target-angle" min="-120" max="90" placeholder="">
+          </div>
+          <button id="btn-start" class="primary full-btn" style="margin-top: 1rem;">Start Experiment</button>
+        </div>
+
+        <!-- Main Experiment Panel -->
+        <div class="panel" id="panel-live">
+          <h2>Live Monitor</h2>
+
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-value" id="ui-count">0</div>
+              <div class="stat-label">Repetitions</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="ui-time">00:00:00</div>
+              <div class="stat-label">Elapsed Time</div>
+            </div>
+          </div>
+
+          <div class="progress-container">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.875rem;">
+              <span>Progress</span>
+              <span id="ui-percentage">0%</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-bar-fill" id="ui-progress"></div>
+            </div>
+          </div>
+
+          <div class="controls-grid">
+            <button id="btn-pause">Pause</button>
+            <button id="btn-stop" class="danger">Stop & Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History Panel -->
+      <div class="panel">
+        <h2>Experiment History</h2>
+        <div class="table-container">
+          <table id="history-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Angles</th>
+                <th>Reps Achieved</th>
+                <th>Target</th>
+                <th>Duration</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="history-body">
+              <tr>
+                <td colspan="7" class="empty-history">Loading history...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANUAL VIEW -->
+    <div id="view-manual" class="view active">
+      <div class="panel" id="panel-manual-control">
+        <div class="align-center">
+          <h2>Manual Control</h2>
+          <span class="status-badge status-manual" id="manual-lockout-badge" style="display: none;">Locked</span>
+        </div>
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-top:0;">
+          Move the arm to a specific angle (Range: 90° to -120°). Only available when stopped.
+        </p>
+
+        <!-- Visual Arm SVG -->
+        <div class="arm-container" id="arm-container">
+          <svg class="arm-svg" viewBox="-100 -100 200 200">
+            <!-- Grid lines for reference -->
+            <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+            <line x1="0" y1="-100" x2="0" y2="100" stroke="rgba(255,255,255,0.1)" stroke-width="2" />
+
+            <!-- Angle arc background (90 to -120) -->
+            <path d="M 0 -80 A 80 80 0 0 1 80 0 A 80 80 0 0 1 -40 69.28" fill="none" stroke="rgba(255,255,255,0.05)"
+              stroke-width="20" stroke-dasharray="4 4" />
+
+            <!-- Fixed Arm -->
+            <g id="fixed-arm">
+              <rect x="-80" y="-8" width="80" height="16" rx="4" fill="#334155" />
+              <circle cx="-80" cy="0" r="4" fill="#1e293b" />
+            </g>
+
+            <!-- Rotating Arm (Group) -->
+            <g id="visual-arm" transform="rotate(-90)">
+              <rect x="0" y="-8" width="80" height="16" rx="4" fill="var(--accent)" />
+              <circle cx="80" cy="0" r="4" fill="#000" />
+            </g>
+
+            <!-- Fixed Base Pivot -->
+            <circle cx="0" cy="0" r="12" fill="#1e293b" stroke="var(--panel-border)" stroke-width="3" />
+            <circle cx="0" cy="0" r="4" fill="var(--text-main)" />
+          </svg>
+        </div>
+
+        <button id="btn-home" class="primary full-btn" style="margin-bottom: 1rem; font-weight: 800;">HOME
+          (90°)</button>
+
+        <div class="preset-grid">
+          <button class="preset-btn" data-angle="90">90° (Up)</button>
+          <button class="preset-btn" data-angle="45">45°</button>
+          <button class="preset-btn" data-angle="0">0° (Flat)</button>
+          <button class="preset-btn" data-angle="-45">-45°</button>
+          <button class="preset-btn" data-angle="-90">-90° (Down)</button>
+          <button class="preset-btn" data-angle="-120">-120°</button>
+        </div>
+
+        <div class="input-group" style="margin-top: 1.5rem;">
+          <div class="align-center">
+            <label>Custom Angle Slider</label>
+            <span id="slider-val-display" style="color: var(--accent); font-weight: 600;">90°</span>
+          </div>
+          <input type="range" id="input-angle-slider" min="-120" max="90" value="90">
+        </div>
+
+        <div class="input-group" style="margin-top: 0.5rem;">
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="number" id="input-angle" placeholder="Exact Angle" value="90" min="-120" max="90">
+            <button id="btn-manual" class="primary" style="flex: 1;">Command Arm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Firebase Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getDatabase, ref, onValue, set, get, push, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { firebaseConfig } from "./firebase-config.js";
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // Authenticate Web UI Anonymously
+    signInAnonymously(auth).catch((error) => {
+      console.error("Auth Error:", error.message);
+      uiStatus.textContent = "Auth Failed";
+    });
+
+    // DOM Elements - Tabs
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const views = document.querySelectorAll('.view');
+
+    // DOM Elements - Setup & Dashboard
+    const uiStatus = document.getElementById('ui-status');
+    const uiCount = document.getElementById('ui-count');
+    const uiTime = document.getElementById('ui-time');
+    const uiPercentage = document.getElementById('ui-percentage');
+    const uiProgress = document.getElementById('ui-progress');
+
+    const panelSetup = document.getElementById('panel-setup');
+    const panelLive = document.getElementById('panel-live');
+    const btnStart = document.getElementById('btn-start');
+    const btnPause = document.getElementById('btn-pause');
+    const btnStop = document.getElementById('btn-stop');
+
+    const inputExpName = document.getElementById('input-exp-name');
+    const inputTarget = document.getElementById('input-target');
+    const inputStartAngle = document.getElementById('input-start-angle');
+    const inputTargetAngle = document.getElementById('input-target-angle');
+
+    // DOM Elements - Manual
+    const panelManualControl = document.getElementById('panel-manual-control');
+    const manualLockoutBadge = document.getElementById('manual-lockout-badge');
+    const inputAngleSlider = document.getElementById('input-angle-slider');
+    const inputAngleNumber = document.getElementById('input-angle');
+    const sliderValDisplay = document.getElementById('slider-val-display');
+    const btnManual = document.getElementById('btn-manual');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const btnHome = document.getElementById('btn-home');
+    const armContainer = document.getElementById('arm-container');
+    const visualArm = document.getElementById('visual-arm');
+    let isDraggingArm = false;
+
+    const historyBody = document.getElementById('history-body');
+
+    // History Delete Event Delegation
+    historyBody.addEventListener('click', async (e) => {
+      if (e.target.classList.contains('btn-delete')) {
+        const key = e.target.getAttribute('data-key');
+        if (confirm('Are you sure you want to delete this experiment history?')) {
+          await remove(ref(db, `history/${key}`));
+        }
+      }
+    });
+
+    // State Variables
+    let currentState = 'stopped';
+    let currentCount = 0;
+    let targetCount = 100000;
+    let expStartAngle = 90;
+    let expTargetAngle = -120;
+    let startTime = null;
+    let expName = '';
+    let manualAngle = 90;
+
+    let timerInterval = null;
+    let hasAutoSaved = false;
+
+    // Tab Switching Logic
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        views.forEach(v => v.classList.remove('active'));
+
+        btn.classList.add('active');
+        const targetViewId = btn.getAttribute('data-target');
+        document.getElementById(targetViewId).classList.add('active');
+      });
+    });
+
+    // Manual Angle Syncing & Visual Updates
+    function updateVisualArm(angle) {
+      if (visualArm) visualArm.setAttribute('transform', `rotate(${-angle})`);
+    }
+
+    async function setManualAngle(angle) {
+      if (currentState === 'running' || currentState === 'paused') return;
+      let val = parseInt(angle);
+      if (isNaN(val)) val = 0;
+      if (val > 90) val = 90;
+      if (val < -120) val = -120;
+
+      await set(ref(db, 'wireBender/manual_angle'), val);
+      await set(ref(db, 'wireBender/state'), 'manual');
+    }
+
+    inputAngleSlider.addEventListener('input', (e) => {
+      const val = e.target.value;
+      inputAngleNumber.value = val;
+      sliderValDisplay.textContent = `${val}°`;
+      updateVisualArm(val);
+    });
+
+    inputAngleSlider.addEventListener('change', (e) => {
+      setManualAngle(e.target.value);
+    });
+
+    inputAngleNumber.addEventListener('input', (e) => {
+      let val = parseInt(e.target.value);
+      if (isNaN(val)) val = 0;
+      if (val > 90) val = 90;
+      if (val < -120) val = -120;
+      inputAngleSlider.value = val;
+      sliderValDisplay.textContent = `${val}°`;
+      updateVisualArm(val);
+    });
+
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = btn.getAttribute('data-angle');
+        setManualAngle(val);
+      });
+    });
+
+    if (btnHome) {
+      btnHome.addEventListener('click', () => {
+        setManualAngle(90);
+      });
+    }
+
+    // Visual Arm Dragging Logic
+    function calculateAngleFromEvent(e) {
+      const rect = armContainer.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+
+      let angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+
+      // Clamp between 90 and -120
+      if (angle > 90 && angle <= 180) angle = 90;
+      else if (angle < -120 || angle > 180 || angle < -180) angle = -120;
+
+      return Math.round(angle);
+    }
+
+    function handleArmDragStart(e) {
+      if (currentState === 'running' || currentState === 'paused') return;
+      if (e.type === 'touchstart' && (e.target === armContainer || armContainer.contains(e.target))) {
+        e.preventDefault();
+      }
+      isDraggingArm = true;
+      const angle = calculateAngleFromEvent(e);
+      inputAngleSlider.value = angle;
+      inputAngleNumber.value = angle;
+      sliderValDisplay.textContent = `${angle}°`;
+      updateVisualArm(angle);
+    }
+
+    function handleArmDragMove(e) {
+      if (!isDraggingArm) return;
+      if (e.type === 'touchmove') e.preventDefault();
+      const angle = calculateAngleFromEvent(e);
+      inputAngleSlider.value = angle;
+      inputAngleNumber.value = angle;
+      sliderValDisplay.textContent = `${angle}°`;
+      updateVisualArm(angle);
+    }
+
+    function handleArmDragEnd(e) {
+      if (!isDraggingArm) return;
+      isDraggingArm = false;
+      const angle = parseInt(inputAngleSlider.value);
+      setManualAngle(angle);
+    }
+
+    armContainer.addEventListener('mousedown', handleArmDragStart);
+    window.addEventListener('mousemove', handleArmDragMove);
+    window.addEventListener('mouseup', handleArmDragEnd);
+
+    armContainer.addEventListener('touchstart', handleArmDragStart, { passive: false });
+    window.addEventListener('touchmove', handleArmDragMove, { passive: false });
+    window.addEventListener('touchend', handleArmDragEnd);
+
+    // Listen to current state
+    const stateRef = ref(db, 'wireBender');
+    onValue(stateRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        let prevState = currentState;
+        currentState = data.state || 'stopped';
+        currentCount = data.current_count || 0;
+        targetCount = data.target_count || 100000;
+        expStartAngle = data.start_angle !== undefined ? data.start_angle : 90;
+        expTargetAngle = data.target_angle !== undefined ? data.target_angle : -120;
+        startTime = data.start_time || null;
+        expName = data.experiment_name || 'Unnamed Experiment';
+        manualAngle = data.manual_angle !== undefined ? data.manual_angle : 90;
+
+        let endTime = data.end_time || null;
+
+        // Automatically save completed experiment to history and reset for next run.
+        // Uses a local flag to prevent duplicate saves across rapid onValue callbacks.
+        if (startTime && currentCount >= targetCount && currentCount > 0 && !hasAutoSaved) {
+          hasAutoSaved = true;
+          const end = endTime || Date.now();
+          // Save to history
+          const duration = formatTime(end - startTime);
+          set(ref(db, `history/${startTime}`), {
+            experiment_name: expName,
+            start_time: startTime,
+            reps_achieved: currentCount,
+            target: targetCount,
+            start_angle: expStartAngle,
+            target_angle: expTargetAngle,
+            duration: duration
+          });
+          // Reset state for next experiment (matches "Stop & Save" cleanup)
+          set(ref(db, 'wireBender/current_count'), 0);
+          set(ref(db, 'wireBender/start_time'), null);
+          set(ref(db, 'wireBender/end_time'), null);
+          set(ref(db, 'wireBender/manual_angle'), 90);
+          set(ref(db, 'wireBender/state'), 'stopped');
+        }
+
+        window.expEndTime = endTime;
+
+        updateUI();
+      }
+    });
+
+    // Listen to history
+    const historyRef = ref(db, 'history');
+    onValue(historyRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        historyBody.innerHTML = '';
+        // Sort history by date descending
+        const records = Object.keys(data).map(k => ({ key: k, ...data[k] })).sort((a, b) => b.start_time - a.start_time);
+        records.forEach(record => {
+          const tr = document.createElement('tr');
+          const date = new Date(record.start_time).toLocaleString();
+          const startAng = record.start_angle !== undefined ? record.start_angle : 90;
+          const targetAng = record.target_angle !== undefined ? record.target_angle : -120; // Fallback for old records
+          tr.innerHTML = `
+            <td>${date}</td>
+            <td><strong>${record.experiment_name}</strong></td>
+            <td>${startAng}° ➔ ${targetAng}°</td>
+            <td>${record.reps_achieved.toLocaleString()}</td>
+            <td>${record.target.toLocaleString()}</td>
+            <td>${record.duration}</td>
+            <td><button class="btn-delete" style="background: transparent; border: none; color: var(--danger); font-size: 1.25rem; padding: 0.25rem 0.5rem; line-height: 1;" data-key="${record.key}" title="Delete">&times;</button></td>
+          `;
+          historyBody.appendChild(tr);
+        });
+      } else {
+        historyBody.innerHTML = '<tr><td colspan="7" class="empty-history">No history found.</td></tr>';
+      }
+    });
+
+    function formatTime(ms) {
+      if (!ms || ms < 0) return "00:00:00";
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+      const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+      const seconds = String(totalSeconds % 60).padStart(2, '0');
+      return `${hours}:${minutes}:${seconds}`;
+    }
+
+    function updateTimer() {
+      if (currentState === 'running' && startTime) {
+        const end = window.expEndTime || Date.now();
+        const elapsed = end - startTime;
+        uiTime.textContent = formatTime(elapsed);
+      }
+    }
+
+    function updateUI() {
+      uiCount.textContent = currentCount.toLocaleString();
+
+      let percentage = (currentCount / targetCount) * 100;
+      if (percentage > 100) percentage = 100;
+
+      uiPercentage.textContent = percentage.toFixed(1) + '%';
+      uiProgress.style.width = percentage + '%';
+
+      // Human-readable status text
+      const statusLabels = { stopped: 'Stopped', running: 'Running', paused: 'Paused', manual: 'Manual', homing: 'Homing…' };
+      uiStatus.textContent = statusLabels[currentState] || currentState;
+      uiStatus.className = 'status-badge status-' + currentState;
+
+      // Lock the entire UI while homing
+      if (currentState === 'homing') {
+        panelSetup.classList.add('disabled');
+        panelLive.classList.add('disabled');
+        panelManualControl.classList.add('disabled');
+        manualLockoutBadge.style.display = 'none';
+        btnPause.disabled = true;
+        btnStop.disabled = true;
+        btnStart.disabled = true;
+        return; // Nothing else to update during homing
+      }
+
+      btnStart.disabled = false;
+
+      // Update Setup Panel opacity/interaction based on running state
+      if (currentState === 'running' || currentState === 'paused') {
+        panelSetup.classList.add('disabled');
+        // Keep live panel active
+        panelLive.classList.remove('disabled');
+        btnPause.disabled = false;
+        btnStop.disabled = false;
+        if (currentState === 'paused') {
+          btnPause.textContent = "Resume";
+        } else {
+          btnPause.textContent = "Pause";
+        }
+      } else {
+        panelSetup.classList.remove('disabled');
+        // Dim live panel controls since we're stopped
+        btnPause.disabled = true;
+        btnStop.disabled = true;
+        btnPause.textContent = "Pause";
+      }
+
+      // Manual Mode Lockout
+      const isManualLocked = (currentState === 'running' || currentState === 'paused');
+      if (isManualLocked) {
+        panelManualControl.classList.add('disabled');
+        manualLockoutBadge.style.display = 'inline-block';
+      } else {
+        panelManualControl.classList.remove('disabled');
+        manualLockoutBadge.style.display = 'none';
+      }
+
+      // Manage timer loop
+      if (currentState === 'running') {
+        if (!timerInterval) timerInterval = setInterval(updateTimer, 1000);
+      } else {
+        if (timerInterval) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+        }
+      }
+
+      // Update timer display for non-running states
+      if (currentState === 'paused' && startTime) {
+        const end = window.expEndTime || Date.now();
+        uiTime.textContent = formatTime(end - startTime);
+      } else if (currentState !== 'running') {
+        uiTime.textContent = "00:00:00";
+      }
+
+      // Update manual controls if not being dragged
+      if (!isDraggingArm && currentState !== 'running' && currentState !== 'paused') {
+        inputAngleSlider.value = manualAngle;
+        inputAngleNumber.value = manualAngle;
+        sliderValDisplay.textContent = `${manualAngle}°`;
+        if (visualArm) {
+          visualArm.setAttribute('transform', `rotate(${-manualAngle})`);
+        }
+      }
+    }
+
+    // Actions
+    btnStart.addEventListener('click', async () => {
+      if (currentState === 'stopped' || currentState === 'manual') {
+        // Starting fresh
+        const name = inputExpName.value || 'Unnamed Experiment';
+        const target = parseInt(inputTarget.value);
+        if (isNaN(target) || target <= 0) {
+          alert("Please enter a valid Target Repetitions number greater than 0.");
+          return;
+        }
+
+        let startAngle = parseFloat(inputStartAngle.value);
+        if (isNaN(startAngle) || startAngle > 90 || startAngle < -120) {
+          alert("Please enter a valid Start Angle between 90° and -120°.");
+          return;
+        }
+
+        let angle = parseFloat(inputTargetAngle.value);
+        if (isNaN(angle) || angle > 90 || angle < -120) {
+          alert("Please enter a valid Target Angle between 90° and -120°.");
+          return;
+        }
+
+        if (startAngle === angle) {
+          alert("Start Angle and Target Angle cannot be the same.");
+          return;
+        }
+
+        hasAutoSaved = false;
+        await set(ref(db, 'wireBender/current_count'), 0);
+        await set(ref(db, 'wireBender/target_count'), target);
+        await set(ref(db, 'wireBender/start_angle'), startAngle);
+        await set(ref(db, 'wireBender/target_angle'), angle);
+        await set(ref(db, 'wireBender/experiment_name'), name);
+        await set(ref(db, 'wireBender/start_time'), Date.now());
+        await set(ref(db, 'wireBender/end_time'), null);
+        await set(ref(db, 'wireBender/manual_angle'), startAngle);
+        await set(ref(db, 'wireBender/state'), 'running');
+      }
+    });
+
+    btnPause.addEventListener('click', async () => {
+      if (currentState === 'running') {
+        await set(ref(db, 'wireBender/state'), 'paused');
+      } else if (currentState === 'paused') {
+        await set(ref(db, 'wireBender/state'), 'running');
+      }
+    });
+
+    btnStop.addEventListener('click', async () => {
+      // Save to history
+      if (startTime) {
+        const end = window.expEndTime || Date.now();
+        const duration = formatTime(end - startTime);
+        await set(ref(db, `history/${startTime}`), {
+          experiment_name: expName,
+          start_time: startTime,
+          reps_achieved: currentCount,
+          target: targetCount,
+          start_angle: expStartAngle,
+          target_angle: expTargetAngle,
+          duration: duration
+        });
+      }
+
+      // Reset state
+      await set(ref(db, 'wireBender/current_count'), 0);
+      await set(ref(db, 'wireBender/target_count'), targetCount);
+      await set(ref(db, 'wireBender/start_angle'), expStartAngle);
+      await set(ref(db, 'wireBender/target_angle'), expTargetAngle);
+      await set(ref(db, 'wireBender/experiment_name'), expName);
+      await set(ref(db, 'wireBender/start_time'), null);
+      await set(ref(db, 'wireBender/end_time'), null);
+      await set(ref(db, 'wireBender/manual_angle'), 90);
+      await set(ref(db, 'wireBender/state'), 'stopped');
+    });
+
+    btnManual.addEventListener('click', () => {
+      let angle = parseInt(inputAngleNumber.value);
+      setManualAngle(angle);
+    });
+
+  </script>
+</body>
+
+</html>

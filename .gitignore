@@ -1,0 +1,15 @@
+# Arduino secrets
+secrets.h
+
+# Web UI config
+firebase-config.js
+
+# Arduino build artifacts (if any)
+build/
+*.bin
+*.elf
+*.hex
+
+# OS files
+.DS_Store
+Thumbs.db
