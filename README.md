@@ -1,4 +1,4 @@
-# Wire-Bender
+# Wire Bender
 
 This repository contains the firmware and web interface for operating an automated wire bending machine.
 
@@ -12,7 +12,7 @@ This repository contains the firmware and web interface for operating an automat
    - Select your home Wi-Fi network, enter your password, and save. The machine will now connect to your home network automatically every time you turn it on. You only need to do this once.
 3. **Wait for Homing**: After switching the machine on, **wait a few seconds**. The machine will immediately perform an automatic homing sequence. 
    - *What is Homing?* The motor will move the arm towards the limit switch until it is pressed. This establishes the arm's absolute "zero" position so it knows exactly where it is when moving.
-4. **Use the Web Interface**: Once homing is complete, open the web interface on your computer or mobile device to control the machine manually or start wire bending experiment.
+4. **Use the Web Interface**: Once homing is complete, open the web interface (https://wire-bender.vercel.app/) on your computer or mobile device to control the machine manually or start wire bending experiment.
 
 # Setup Instructions
 
