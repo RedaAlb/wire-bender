@@ -18,6 +18,7 @@ Once the ESP32 core is installed, select your specific board:
 3. Ensure the settings under the **Tools** menu look roughly like this:
    - **Upload Speed:** 115200 (or 921600 if it supports it for faster uploads)
    - **Flash Frequency:** 80MHz
+   - **Partition Scheme:** **Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS)**  *(CRITICAL: The Firebase and OTA libraries are large. The default scheme only allows 1.2MB, which is too small. You must select Minimal SPIFFS to give the app 1.9MB of space!)*
 
 ## 3. Install Required Libraries
 The project uses several external libraries. You can install them by going to **Sketch > Include Library > Manage Libraries...** (or clicking the Library Manager icon on the left). 
@@ -40,3 +41,14 @@ Because your Firebase credentials shouldn't be publicly uploaded to GitHub, they
 4. **Important:** When you see `Connecting...` with dots and dashes appear in the bottom terminal, you may need to **press and hold the "BOOT" button** on your AZDelivery ESP32 board until it begins uploading.
 
 Once uploaded, open the **Serial Monitor** (set baud rate to `115200`) to verify it is working. The ESP32 will broadcast a WiFi network called "WireBender-Setup". Connect your phone/laptop to that network, and a captive portal will pop up allowing you to enter your home WiFi credentials!
+
+## 6. Remote Internet Updates (OTA)
+After you have flashed the ESP32 via USB once using the steps above, you can update it remotely over the internet!
+
+1. Make your code changes in the Arduino IDE.
+2. Go to **Sketch > Export compiled Binary**. This will create a `.bin` file in your sketch folder.
+3. Upload this `.bin` file to a public web server (e.g., place it in the `public` folder of your Vercel app and deploy, or upload to a GitHub release).
+4. Open the Wire Bender Web UI.
+5. In the "Manual Mode" tab, scroll down to **Remote Internet Update**.
+6. Paste the direct URL to your `.bin` file and click **Flash Firmware**.
+7. The machine will download the file, update itself, and reboot automatically!

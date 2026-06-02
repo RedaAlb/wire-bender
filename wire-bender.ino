@@ -2,6 +2,8 @@
 #include <WiFiManager.h>
 #include <Firebase_ESP_Client.h>
 #include <AccelStepper.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
 
 // Provide the token generation process info.
 #include "addons/TokenHelper.h"
@@ -39,6 +41,7 @@ int targetCount = 100000;
 float startAngle = 90.0;
 float targetAngle = -120.0;
 float manualAngle = 0.0;
+String otaUrl = "";
 
 // Flags for motor logic
 bool movingDown = false;
@@ -99,6 +102,8 @@ void streamCallback(FirebaseStream data) {
     if(currentState == "manual") {
       moveToAngle(manualAngle);
     }
+  } else if (path == "/ota_url") {
+    otaUrl = data.stringData();
   } else if (path == "/current_count") {
     if (data.intData() == 0) {
       currentCount = 0;
@@ -112,6 +117,8 @@ void streamTimeoutCallback(bool timeout) {
 
 void setup() {
   Serial.begin(115200);
+
+  Serial.println("Starting setup...");
   
   // IMMEDIATELY set stepper pins to OUTPUT and LOW to prevent them from floating.
   // Floating pins act as antennas and will pick up the ESP32's WiFi RF noise,
@@ -139,6 +146,9 @@ void setup() {
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
+
+  // Clear any pending OTA URL so we don't bootloop if an update fails
+  Firebase.RTDB.setString(&fbData, "/wireBender/ota_url", "");
 
   // Setup Firebase Stream to listen for changes from the Web UI asynchronously
   if (!Firebase.RTDB.beginStream(&streamData, "/wireBender")) {
@@ -257,6 +267,38 @@ void moveToAngle(float angle) {
 void loop() {
   Firebase.ready(); // handles token generation
   
+  if (otaUrl != "") {
+    String urlToFetch = otaUrl;
+    otaUrl = ""; // Clear locally to avoid loop
+    
+    Serial.println("Starting OTA Update from: " + urlToFetch);
+    
+    // Safely stop the motor before updating
+    stepper.stop();
+    while (stepper.distanceToGo() != 0) {
+      stepper.run();
+    }
+    
+    WiFiClientSecure client;
+    client.setInsecure(); // Skip certificate validation for flexible hosting (e.g. Vercel, GitHub)
+    
+    t_httpUpdate_return ret = httpUpdate.update(client, urlToFetch);
+    
+    switch (ret) {
+      case HTTP_UPDATE_FAILED:
+        Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        Firebase.RTDB.setString(&fbData, "/wireBender/ota_url", ""); // Clear so we can try again
+        break;
+      case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        Firebase.RTDB.setString(&fbData, "/wireBender/ota_url", "");
+        break;
+      case HTTP_UPDATE_OK:
+        Serial.println("HTTP_UPDATE_OK"); // ESP32 will auto reboot
+        break;
+    }
+  }
+
   if (currentState == "running") {
     // If the motor has reached its target position
     if (stepper.distanceToGo() == 0) {

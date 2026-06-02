@@ -629,6 +629,17 @@
           </div>
         </div>
       </div>
+
+      <div class="panel" id="panel-ota-update" style="margin-top: 1.5rem;">
+        <h2>Remote Internet Update</h2>
+        <p style="font-size: 0.875rem; color: var(--text-muted); margin-top:0;">
+          Paste the URL of your compiled .bin firmware to update the machine over the internet.
+        </p>
+        <div class="input-group">
+          <input type="text" id="input-ota-url" placeholder="">
+        </div>
+        <button id="btn-ota-update" class="danger full-btn">Flash Firmware</button>
+      </div>
     </div>
 
   </div>
@@ -1132,6 +1143,30 @@
         } finally {
           btnDownloadPdf.textContent = originalText;
           btnDownloadPdf.disabled = false;
+        }
+      });
+    }
+
+    // OTA Update Logic
+    const inputOtaUrl = document.getElementById('input-ota-url');
+    const btnOtaUpdate = document.getElementById('btn-ota-update');
+
+    if (btnOtaUpdate) {
+      btnOtaUpdate.addEventListener('click', async () => {
+        const url = inputOtaUrl.value.trim();
+        if (!url) {
+          alert('Please enter a valid URL');
+          return;
+        }
+        if (confirm('Are you sure you want to flash new firmware from this URL? The machine will reboot.')) {
+          btnOtaUpdate.disabled = true;
+          btnOtaUpdate.textContent = 'Updating...';
+          await set(ref(db, 'wireBender/ota_url'), url);
+          setTimeout(() => {
+            btnOtaUpdate.disabled = false;
+            btnOtaUpdate.textContent = 'Flash Firmware';
+            inputOtaUrl.value = '';
+          }, 10000); // Reset button after 10 seconds
         }
       });
     }

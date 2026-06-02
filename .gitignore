@@ -6,7 +6,6 @@ firebase-config.js
 
 # Arduino build artifacts (if any)
 build/
-*.bin
 *.elf
 *.hex
 
